@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect, Component, useCallback } from 'react';
+import React, { useEffect, Component } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { processMedicalData, TriageReport } from './services/geminiService';
-import { optimizeImage } from './utils/imageUtils';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { IntakeSection } from './components/IntakeSection';
 import { ProcessingSection } from './components/ProcessingSection';
 import { ReportSection } from './components/ReportSection';
+import { useTriage } from './hooks/useTriage';
+import { LOADING_MESSAGES } from './constants';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -48,128 +48,54 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 }
 
 export default function App() {
-  const [images, setImages] = useState<{ file: File; preview: string }[]>([]);
-  const [voiceInput, setVoiceInput] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [report, setReport] = useState<TriageReport | null>(null);
-  const [loadingStep, setLoadingStep] = useState(0);
-  const [showDemoHint, setShowDemoHint] = useState(true);
-  const [isHandingOver, setIsHandingOver] = useState(false);
-  const [handoverComplete, setHandoverComplete] = useState(false);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadingMessages = [
-    "Initializing neural triage engine...",
-    "Scanning medical records for critical markers...",
-    "Reconciling verbal distress with history...",
-    "Cross-referencing allergies and medications...",
-    "Verifying clinical data via Grounding...",
-    "Finalizing triage criticality score...",
-    "Generating handover protocol..."
-  ];
+  const {
+    images,
+    voiceInput,
+    setVoiceInput,
+    isProcessing,
+    isOptimizing,
+    report,
+    loadingStep,
+    setLoadingStep,
+    showDemoHint,
+    isHandingOver,
+    handoverComplete,
+    error,
+    setError,
+    handleImageUpload,
+    removeImage,
+    handleProcess,
+    loadDemoData,
+    handleHandover,
+    handleReset
+  } = useTriage();
 
   useEffect(() => {
     if (isProcessing) {
       const interval = setInterval(() => {
-        setLoadingStep((prev) => (prev + 1) % loadingMessages.length);
+        setLoadingStep((prev) => (prev + 1) % LOADING_MESSAGES.length);
       }, 1800);
       return () => clearInterval(interval);
     }
-  }, [isProcessing, loadingMessages.length]);
-
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        setLocation({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude
-        });
-      }, (err) => {
-        console.warn("Geolocation access denied or failed:", err.message);
-      });
-    }
-  }, []);
-
-  const handleImageUpload = useCallback((files: FileList | null) => {
-    if (!files) return;
-    const newImages = Array.from(files).map(file => ({
-      file,
-      preview: URL.createObjectURL(file)
-    }));
-    setImages(prev => [...prev, ...newImages]);
-  }, []);
-
-  const removeImage = useCallback((index: number) => {
-    setImages(prev => {
-      const updated = [...prev];
-      URL.revokeObjectURL(updated[index].preview);
-      updated.splice(index, 1);
-      return updated;
-    });
-  }, []);
-
-  const handleProcess = useCallback(async () => {
-    setIsOptimizing(true);
-    setError(null);
-    
-    try {
-      // Optimize images before sending (Efficiency)
-      const imageParts = await Promise.all(
-        images.map(async (img) => ({
-          inlineData: {
-            data: await optimizeImage(img.file),
-            mimeType: "image/jpeg"
-          }
-        }))
-      );
-
-      setIsOptimizing(false);
-      setIsProcessing(true);
-      setLoadingStep(0);
-
-      const result = await processMedicalData(imageParts, voiceInput, location);
-      setReport(result);
-    } catch (err: any) {
-      console.error("Triage Error:", err);
-      const errorMessage = err?.message || "Unknown error occurred during analysis.";
-      setError(`Triage Analysis Failed: ${errorMessage}`);
-      setIsOptimizing(false);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [images, voiceInput, location]);
-
-  const loadDemoData = useCallback(() => {
-    setVoiceInput("Patient reports sudden onset of sharp chest pain radiating to left arm. History of hypertension. Patient is visibly distressed and sweating.");
-    setShowDemoHint(false);
-  }, []);
-
-  const handleHandover = useCallback(() => {
-    setIsHandingOver(true);
-    setTimeout(() => {
-      setIsHandingOver(false);
-      setHandoverComplete(true);
-    }, 3000);
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setReport(null);
-    setImages([]);
-    setVoiceInput('');
-    setHandoverComplete(false);
-    setError(null);
-  }, []);
+  }, [isProcessing, setLoadingStep]);
 
   return (
     <ErrorBoundary>
       <div className="bg-[#E6E6E6] min-h-screen flex items-center justify-center p-4 font-sans">
+        {/* Skip to Content Link (Accessibility) */}
+        <a 
+          href="#main-content" 
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-black focus:font-mono focus:text-xs focus:uppercase focus:tracking-widest"
+        >
+          Skip to Content
+        </a>
+
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-2xl bg-[#151619] rounded-2xl shadow-2xl overflow-hidden border border-white/5"
           role="main"
+          id="main-content"
           aria-labelledby="app-title"
         >
           <Header />
@@ -212,7 +138,7 @@ export default function App() {
                 <ProcessingSection 
                   key="processing"
                   loadingStep={loadingStep}
-                  loadingMessages={loadingMessages}
+                  loadingMessages={LOADING_MESSAGES}
                 />
               ) : (
                 <ReportSection 

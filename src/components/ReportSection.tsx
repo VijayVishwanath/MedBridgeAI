@@ -145,6 +145,7 @@ export const ReportSection: React.FC<ReportSectionProps> = React.memo(({
                     rel="noopener noreferrer"
                     className="flex items-center justify-between bg-blue-500/5 border border-blue-500/10 px-3 py-2 rounded-lg text-[10px] text-blue-400 hover:bg-blue-500/10 transition-colors"
                     role="listitem"
+                    aria-label={`View hospital: ${h.name}`}
                   >
                     <span className="font-medium">{h.name}</span>
                     <ChevronRight size={12} aria-hidden="true" />

@@ -133,7 +133,7 @@ export const IntakeSection: React.FC<IntakeSectionProps> = React.memo(({
         onClick={onProcess}
         disabled={(images.length === 0 && !voiceInput) || isOptimizing}
         className="w-full py-4 bg-white text-black font-mono text-xs uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none focus:ring-2 focus:ring-white focus:outline-none"
-        aria-label={isOptimizing ? "Optimizing images..." : "Initiate neural triage analysis"}
+        aria-label={isOptimizing ? "Optimizing assets..." : "Initiate neural triage analysis"}
       >
         {isOptimizing ? "Optimizing Assets..." : "Initiate Triage Analysis"}
       </button>

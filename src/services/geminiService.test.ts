@@ -1,62 +1,107 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { processMedicalData } from './geminiService';
-import { GoogleGenAI } from '@google/genai';
 
-// Mock GoogleGenAI
+// Mock the @google/genai library
 vi.mock('@google/genai', () => {
+  const generateContentMock = vi.fn();
+  function GoogleGenAIMock() {
+    return {
+      models: {
+        generateContent: generateContentMock,
+      },
+    };
+  }
+
   return {
-    GoogleGenAI: vi.fn().mockImplementation(function() {
-      return {
-        models: {
-          generateContent: vi.fn().mockResolvedValue({
-            text: JSON.stringify({
-              patientName: "Test Patient",
-              age: "30",
-              criticalityScore: 8,
-              primaryCondition: "Chest Pain",
-              allergies: ["Penicillin"],
-              medications: ["Aspirin"],
-              summary: "Patient presents with acute chest pain.",
-              recommendedActions: ["ECG", "Troponin"]
-            }),
-            candidates: [{
-              groundingMetadata: {
-                groundingChunks: [
-                  { web: { uri: "https://example.com", title: "Medical Source" } },
-                  { maps: { uri: "https://maps.example.com", title: "Hospital" } }
-                ]
-              }
-            }]
-          })
-        }
-      };
-    }),
+    GoogleGenAI: GoogleGenAIMock,
     Type: {
       OBJECT: 'OBJECT',
       STRING: 'STRING',
       NUMBER: 'NUMBER',
-      ARRAY: 'ARRAY'
-    }
+      ARRAY: 'ARRAY',
+    },
   };
 });
 
+import { GoogleGenAI } from '@google/genai';
+
 describe('geminiService', () => {
+  const mockApiKey = 'test-api-key';
+  
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.GEMINI_API_KEY = mockApiKey;
   });
 
-  it('should process medical data and return a report', async () => {
-    const report = await processMedicalData([], "Test voice input");
-    
-    expect(report.patientName).toBe("Test Patient");
-    expect(report.criticalityScore).toBe(8);
-    expect(report.groundingSources).toHaveLength(1);
-    expect(report.groundingSources[0].title).toBe("Medical Source");
+  it('should throw an error if API key is missing', async () => {
+    delete process.env.GEMINI_API_KEY;
+    await expect(processMedicalData([], 'test')).rejects.toThrow('Gemini API Key is missing');
   });
 
-  it('should handle missing API key', async () => {
-    process.env.GEMINI_API_KEY = '';
-    await expect(processMedicalData([], "Test")).rejects.toThrow("Gemini API Key is missing");
+  it('should process medical data and return a structured report', async () => {
+    const mockReport = {
+      patientName: 'John Doe',
+      age: '45',
+      criticalityScore: 8,
+      primaryCondition: 'Chest Pain',
+      allergies: ['None'],
+      medications: ['Aspirin'],
+      summary: 'Patient has chest pain.',
+      recommendedActions: ['Call 911']
+    };
+
+    const mockResponse = {
+      text: JSON.stringify(mockReport),
+      candidates: [{
+        groundingMetadata: {
+          groundingChunks: [
+            { web: { uri: 'https://example.com', title: 'Example' } }
+          ]
+        }
+      }]
+    };
+
+    const mockMapsResponse = {
+      candidates: [{
+        groundingMetadata: {
+          groundingChunks: [
+            { maps: { title: 'General Hospital', uri: 'https://maps.google.com/hospital' } }
+          ]
+        }
+      }]
+    };
+
+    const aiInstance = new GoogleGenAI({ apiKey: mockApiKey });
+    const generateContentMock = aiInstance.models.generateContent as any;
+    generateContentMock
+      .mockResolvedValueOnce(mockResponse)
+      .mockResolvedValueOnce(mockMapsResponse);
+
+    const result = await processMedicalData([], 'Chest pain', { latitude: 10, longitude: 20 });
+
+    expect(result.patientName).toBe('John Doe');
+    expect(result.criticalityScore).toBe(8);
+    expect(result.groundingSources).toHaveLength(2);
+    expect(result.nearbyHospitals).toHaveLength(1);
+    expect(result.nearbyHospitals![0].name).toBe('General Hospital');
+  });
+
+  it('should handle JSON parsing errors', async () => {
+    const mockResponse = {
+      text: 'invalid json',
+      candidates: []
+    };
+
+    const aiInstance = new GoogleGenAI({ apiKey: mockApiKey });
+    (aiInstance.models.generateContent as any).mockResolvedValue(mockResponse);
+
+    await expect(processMedicalData([], 'test')).rejects.toThrow('Failed to parse AI response');
+  });
+
+  it('should handle API errors gracefully', async () => {
+    const aiInstance = new GoogleGenAI({ apiKey: mockApiKey });
+    (aiInstance.models.generateContent as any).mockRejectedValue(new Error('API Error'));
+
+    await expect(processMedicalData([], 'test')).rejects.toThrow('AI Analysis Failed');
   });
 });
