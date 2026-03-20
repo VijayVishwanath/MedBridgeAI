@@ -17,7 +17,10 @@ MedBridge AI uses **Gemini 3 Flash**'s multimodal reasoning to:
 ## 🛠️ Tech Stack
 - **Frontend:** React 19, Tailwind CSS 4, Motion (Animations)
 - **AI Engine:** Google Gemini 3 Flash (`@google/genai`)
-- **Grounding:** Google Search Grounding for verified medical insights
+- **Grounding:** 
+  - **Google Search Grounding:** For verified medical insights.
+  - **Google Maps Grounding:** To find the nearest ER facilities based on criticality.
+- **Testing:** Vitest, React Testing Library (Unit & Integration)
 - **Icons:** Lucide React
 
 ## 📦 Installation & Setup
@@ -45,8 +48,16 @@ MedBridge AI uses **Gemini 3 Flash**'s multimodal reasoning to:
 ## 🎯 Hackathon Evaluation Highlights
 - **Multimodal Mastery:** Uses both Image and Text parts in a single prompt for contextual reasoning.
 - **Verified Actions:** Implements Google Search Grounding to ensure clinical suggestions are backed by real-world data.
+- **Google Maps Integration:** Automatically finds nearby hospitals using Maps Grounding when criticality is high.
+- **Efficiency Optimized:** 
+  - **Image Optimization:** Resizes and compresses images before AI analysis to reduce bandwidth and token usage.
+  - **Geolocation:** Uses browser Geolocation API to provide context-aware hospital recommendations.
+- **Code Quality & Testing:** 
+  - **Componentized Architecture:** Refactored into reusable, maintainable sub-components.
+  - **Error Boundaries:** Robust handling of neural triage engine failures.
+  - **Unit Testing:** Comprehensive test suite for utilities and UI components.
+- **Accessibility (A11y):** Full ARIA support, keyboard navigation, and semantic HTML for high-stress usability.
 - **Specialist UI:** Follows the "Hardware/Specialist Tool" design recipe for high-stress environment usability.
-- **Zero Latency:** Optimized for speed to meet the < 24h implementation and < 5m demo constraints.
 
 ---
 *Built for the Gemini Hackathon // March 2026*
