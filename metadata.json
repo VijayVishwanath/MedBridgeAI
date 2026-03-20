@@ -1,0 +1,5 @@
+{
+  "name": "MedBridge AI",
+  "description": "A universal bridge between messy medical history and structured life-saving ER triage.",
+  "requestFramePermissions": ["camera", "microphone"]
+}
