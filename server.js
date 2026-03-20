@@ -3,15 +3,22 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from "@google/genai";
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const port = process.env.PORT || 3001;
 
-// SECURITY: Helmet helps secure Express apps by setting various HTTP headers (HIPAA compliance layer)
-app.use(helmet());
+// SECURITY: Helmet helps secure Express apps (HIPAA compliance layer)
+app.use(helmet({
+  contentSecurityPolicy: false // Allow inline scripts/styles for built React app
+}));
 
 // SECURITY: Rate limiting to prevent abuse
 const limiter = rateLimit({
@@ -42,7 +49,6 @@ app.post('/api/triage', async (req, res) => {
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      // SECURITY: Do not expose actual error details in production
       console.error("Critical: GEMINI_API_KEY is not defined in the environment.");
       return res.status(500).json({ error: "Neural Engine configuration error." });
     }
@@ -101,7 +107,6 @@ app.post('/api/triage', async (req, res) => {
 
     const report = JSON.parse(response.text || "{}");
     
-    // Extract grounding sources securely
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     const sources = groundingChunks?.map(chunk => ({
       uri: chunk.web?.uri || "",
@@ -111,10 +116,15 @@ app.post('/api/triage', async (req, res) => {
     res.status(200).json({ ...report, groundingSources: sources });
 
   } catch (error) {
-    // SECURITY: HIPAA logging compliance - Never log raw inputs or outputs that may contain PHI.
     console.error(`[${new Date().toISOString()}] Error in /api/triage analysis pipeline.`);
     res.status(500).json({ error: "Neural analysis failed. Please retry." });
   }
+});
+
+// Cloud Run: Serve React Production Build
+app.use(express.static(path.join(__dirname, 'dist')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(port, () => {
