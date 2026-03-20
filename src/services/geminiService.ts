@@ -1,7 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
 export interface TriageReport {
   patientName: string;
   age: string;
@@ -20,6 +18,12 @@ export async function processMedicalData(
   voiceText: string,
   location?: { latitude: number; longitude: number }
 ): Promise<TriageReport> {
+  const apiKey = process.env.GEMINI_API_KEY || "";
+  if (!apiKey) {
+    throw new Error("Gemini API Key is missing. Please add GEMINI_API_KEY to your Secrets.");
+  }
+  
+  const ai = new GoogleGenAI({ apiKey });
   const reportModel = "gemini-3-flash-preview";
   const mapsModel = "gemini-2.5-flash";
   
@@ -46,35 +50,47 @@ export async function processMedicalData(
   `;
 
   // Step 1: Generate the structured report
-  const reportResponse = await ai.models.generateContent({
-    model: reportModel,
-    contents: {
-      parts: [
-        ...imageParts,
-        { text: reportPrompt }
-      ]
-    },
-    config: {
-      tools: [{ googleSearch: {} }],
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          patientName: { type: Type.STRING },
-          age: { type: Type.STRING },
-          criticalityScore: { type: Type.NUMBER },
-          primaryCondition: { type: Type.STRING },
-          allergies: { type: Type.ARRAY, items: { type: Type.STRING } },
-          medications: { type: Type.ARRAY, items: { type: Type.STRING } },
-          summary: { type: Type.STRING },
-          recommendedActions: { type: Type.ARRAY, items: { type: Type.STRING } },
-        },
-        required: ["patientName", "age", "criticalityScore", "primaryCondition", "allergies", "medications", "summary", "recommendedActions"]
+  let reportResponse;
+  try {
+    reportResponse = await ai.models.generateContent({
+      model: reportModel,
+      contents: {
+        parts: [
+          ...imageParts,
+          { text: reportPrompt }
+        ]
+      },
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            patientName: { type: Type.STRING },
+            age: { type: Type.STRING },
+            criticalityScore: { type: Type.NUMBER },
+            primaryCondition: { type: Type.STRING },
+            allergies: { type: Type.ARRAY, items: { type: Type.STRING } },
+            medications: { type: Type.ARRAY, items: { type: Type.STRING } },
+            summary: { type: Type.STRING },
+            recommendedActions: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+          required: ["patientName", "age", "criticalityScore", "primaryCondition", "allergies", "medications", "summary", "recommendedActions"]
+        }
       }
-    }
-  });
+    });
+  } catch (error: any) {
+    console.error("Gemini Report Generation Error:", error);
+    throw new Error(`AI Analysis Failed: ${error.message || "Unknown error"}`);
+  }
 
-  const report = JSON.parse(reportResponse.text || "{}");
+  let report: any;
+  try {
+    report = JSON.parse(reportResponse.text || "{}");
+  } catch (error) {
+    console.error("JSON Parsing Error:", error, "Raw Text:", reportResponse.text);
+    throw new Error("Failed to parse AI response. The model may have returned invalid data.");
+  }
   
   // Extract grounding sources from report generation (Search)
   const reportGroundingChunks = reportResponse.candidates?.[0]?.groundingMetadata?.groundingChunks;

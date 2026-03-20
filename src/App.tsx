@@ -119,9 +119,10 @@ export default function App() {
 
       const result = await processMedicalData(imageParts, voiceInput, location);
       setReport(result);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Triage Error:", err);
-      setError("Failed to process triage data. Please check your connection and try again.");
+      const errorMessage = err?.message || "Unknown error occurred during analysis.";
+      setError(`Triage Analysis Failed: ${errorMessage}`);
     } finally {
       setIsProcessing(false);
     }
