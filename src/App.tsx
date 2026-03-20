@@ -11,7 +11,10 @@ import {
   Clock, 
   ChevronRight,
   X,
-  Loader2
+  Loader2,
+  ExternalLink,
+  ShieldCheck,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { processMedicalData, TriageReport } from './services/geminiService';
@@ -44,7 +47,23 @@ export default function App() {
   const [report, setReport] = useState<TriageReport | null>(null);
   const [loadingStep, setLoadingStep] = useState(0);
   const [showDemoHint, setShowDemoHint] = useState(true);
+  const [isHandingOver, setIsHandingOver] = useState(false);
+  const [handoverComplete, setHandoverComplete] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (hasError) {
+    return (
+      <div className="min-h-screen bg-[#151619] flex items-center justify-center p-8 text-center">
+        <div className="space-y-4">
+          <AlertCircle className="text-red-500 mx-auto" size={48} />
+          <h1 className="text-white font-mono text-xl uppercase tracking-widest">System Failure</h1>
+          <p className="text-gray-500 text-sm max-w-md">The neural triage engine encountered a critical error. Please restart the protocol.</p>
+          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white text-black font-mono text-xs uppercase tracking-widest">Reboot System</button>
+        </div>
+      </div>
+    );
+  }
 
   const loadDemoData = () => {
     setVoiceInput("Patient reports sudden onset of sharp chest pain radiating to left arm. History of hypertension. Patient is visibly distressed and sweating.");
@@ -117,6 +136,14 @@ export default function App() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleHandover = () => {
+    setIsHandingOver(true);
+    setTimeout(() => {
+      setIsHandingOver(false);
+      setHandoverComplete(true);
+    }, 3000);
   };
 
   return (
@@ -326,6 +353,30 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* Grounding Sources */}
+                    {report?.groundingSources && report.groundingSources.length > 0 && (
+                      <div className="space-y-3 pt-4 border-t border-white/5">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck size={12} className="text-emerald-400" />
+                          <span className={styles.label}>Verified Medical Sources (Grounding)</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {report.groundingSources.slice(0, 3).map((source, i) => (
+                            <a 
+                              key={i} 
+                              href={source.uri} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 bg-emerald-500/5 border border-emerald-500/10 px-2 py-1 rounded text-[9px] text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                            >
+                              <ExternalLink size={8} />
+                              {source.title.length > 25 ? source.title.substring(0, 25) + '...' : source.title}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Actions */}
                     <div className="space-y-3 pt-4 border-t border-white/5">
                       <span className={styles.label}>Immediate Actions</span>
@@ -341,16 +392,45 @@ export default function App() {
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => {
-                    setReport(null);
-                    setImages([]);
-                    setVoiceInput('');
-                  }}
-                  className="w-full py-4 border border-white/10 text-white font-mono text-[10px] uppercase tracking-widest hover:bg-white/5 transition-all"
-                >
-                  Reset for New Patient
-                </button>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => {
+                      setReport(null);
+                      setImages([]);
+                      setVoiceInput('');
+                      setHandoverComplete(false);
+                    }}
+                    className="flex-1 py-4 border border-white/10 text-white font-mono text-[10px] uppercase tracking-widest hover:bg-white/5 transition-all"
+                  >
+                    Reset Protocol
+                  </button>
+                  <button 
+                    onClick={handleHandover}
+                    disabled={isHandingOver || handoverComplete}
+                    className={`flex-1 py-4 font-mono text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                      handoverComplete 
+                        ? 'bg-emerald-500 text-black' 
+                        : 'bg-white text-black hover:bg-gray-200'
+                    }`}
+                  >
+                    {isHandingOver ? (
+                      <>
+                        <Loader2 className="animate-spin" size={14} />
+                        Syncing Handover...
+                      </>
+                    ) : handoverComplete ? (
+                      <>
+                        <CheckCircle2 size={14} />
+                        Handover Verified
+                      </>
+                    ) : (
+                      <>
+                        <Send size={14} />
+                        Initiate Handover
+                      </>
+                    )}
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

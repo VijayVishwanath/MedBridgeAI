@@ -11,6 +11,7 @@ export interface TriageReport {
   medications: string[];
   summary: string;
   recommendedActions: string[];
+  groundingSources: { uri: string; title: string }[];
 }
 
 export async function processMedicalData(
@@ -35,6 +36,8 @@ export async function processMedicalData(
     7. Clinical Summary (concise, professional)
     8. Recommended Immediate Actions for ER staff
     
+    CRITICAL: Use Google Search to verify any medications or conditions found in the unstructured data to ensure the recommended actions are clinically sound and up-to-date.
+    
     Output MUST be valid JSON.
   `;
 
@@ -47,6 +50,7 @@ export async function processMedicalData(
       ]
     },
     config: {
+      tools: [{ googleSearch: {} }],
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -65,5 +69,14 @@ export async function processMedicalData(
     }
   });
 
-  return JSON.parse(response.text || "{}");
+  const report = JSON.parse(response.text || "{}");
+  
+  // Extract grounding sources
+  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+  const sources = groundingChunks?.map(chunk => ({
+    uri: chunk.web?.uri || "",
+    title: chunk.web?.title || ""
+  })).filter(s => s.uri) || [];
+
+  return { ...report, groundingSources: sources };
 }
