@@ -8,15 +8,16 @@ MedBridge AI is a life-saving bridge between chaotic, unstructured medical histo
 In emergency medicine, every second counts. However, intake nurses often spend 15-20 minutes manually parsing a patient's messy paper trail. Errors in this phase—like missing a hidden allergy or a medication contraindication—can be fatal.
 
 ## 💡 The Solution
-MedBridge AI uses **Gemini 3 Flash**'s multimodal reasoning to:
+MedBridge AI uses **Gemini 3 Flash** and **Gemini 2.5 Flash**'s multimodal reasoning to:
 1. **Vision:** Parse messy, handwritten, or printed medical records from photos.
-2. **Reasoning:** Reconcile verbal patient distress with extracted physical data.
+2. **Reasoning:** Reconcile verbal patient distress with extracted physical data using **Gemini 3 Flash**.
 3. **Grounding:** Verify medications and conditions against real-world medical data via **Google Search Grounding**.
 4. **Action:** Generate a structured, verified Triage Report and Handover Protocol in seconds.
+5. **Maps Integration:** Automatically find nearby hospitals using **Google Maps Grounding** via **Gemini 2.5 Flash** when criticality is high.
 
 ## 🛠️ Tech Stack
 - **Frontend:** React 19, Tailwind CSS 4, Motion (Animations)
-- **AI Engine:** Google Gemini 3 Flash (`@google/genai`)
+- **AI Engine:** Google Gemini 3 Flash & Gemini 2.5 Flash (`@google/genai`)
 - **Grounding:** 
   - **Google Search Grounding:** For verified medical insights.
   - **Google Maps Grounding:** To find the nearest ER facilities based on criticality.
